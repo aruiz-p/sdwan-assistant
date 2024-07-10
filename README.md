@@ -47,6 +47,10 @@ I have configured and ACL on the DC's WAN Edge to drop the packets, I want to se
 
 To get more details you can check this <a href="https://netwithalex.blog/building-my-first-sd-wan-ai-assistant-with-langchain/"> blog post </a>
 
+![StartTrace](images/StartTrace.png)
+![StartTrace](images/Events.png)
+![StartTrace](images/assistant-2.png)
+![StartTrace](images/details.png)
 
 
 <!-- CONTACT -->
