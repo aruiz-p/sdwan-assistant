@@ -3,7 +3,6 @@ import requests
 from dotenv import load_dotenv
 import os
 import re
-import logging
 from langchain.agents import tool
 from typing import List, Optional
 load_dotenv()
@@ -147,7 +146,7 @@ def _start_trace(device_list: list, site: str, vpn: str, src: Optional[str] = ""
     "app-vis": "true",
     "qos-mon": qos,
     "duration": "20",
-    "trace-name": "GENAI-Trace",
+    "trace-name": "Assistant-Trace",
     "wan-drop-rate-threshold": 5,
     "local-drop-rate-threshold": 5,
     "source-site-version": source_version
@@ -393,7 +392,7 @@ def _get_aggregate_data(trace_id: int, timestamp: int, traceState: str) -> tuple
 
 
 @tool
-def get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: int) -> tuple[int,str]:
+def get_flow_summary(trace_id: int, timestamp: int) -> tuple[int,str]:
 
     """
     Get information of the flows captured by the trace. 
@@ -401,27 +400,26 @@ def get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: i
     Args:
         trace_id (int): Trace ID to retrieve the entry time from. 
         timestamp (int): Timestamp of trace
-        start_time (int): Start time to filter query. This comes from get_aggregate_data function
-        end_time (int): End time to filter query. This comes from get_aggregate_data function
 
     Returns:
        flow_summary (list): Summary information of the captured flows
     """
 
-    return _get_flow_summary(trace_id, timestamp, start_time, end_time)
+    return _get_flow_summary(trace_id, timestamp)
 
-def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: int) -> tuple[int,str]:
+def _get_flow_summary(trace_id: int, timestamp: int) -> list:
 
     url = "https://%s/dataservice/stream/device/nwpi/traceFinFlowWithQuery?traceId=%s&timestamp=%s"%(vmanage_host,trace_id,timestamp)
 
+    one_minute_later, one_hour_later = calculate_future_timestamps(timestamp)
     payload = json.dumps({
         "query": {
             "condition": "AND",
             "rules": [
                 {
                     "value": [
-                    start_time,
-                    end_time
+                    one_minute_later,
+                    one_hour_later
                     ],
                     "field": "data.received_timestamp",
                     "type": "date",
@@ -430,6 +428,8 @@ def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: 
             ]
             }
         })
+    
+
 
     response = requests.request("GET", url, headers=header, verify=False, data=payload)
 
@@ -442,6 +442,7 @@ def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: 
                 "Flow ID:" : flow["data"]["flow_id"],
                 "Source:": flow["data"]["src_ip"], 
                 "Destination:": flow["data"]["dst_ip"],
+                "Destination Port": flow["data"]["dst_port"],
                 "Application:": flow["data"]["app_name"],
                 "Protocol:": flow["data"]["protocol"],
                 }
@@ -486,7 +487,7 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
             if trace["data"]["received_timestamp"] not in timestamps and trace["data"]["device_name"] not in devices:
                 timestamps.append(trace["data"]["received_timestamp"])
                 devices.append(trace["data"]["device_name"])
-
+        print(timestamps, "timestamps")
         for timestamp in timestamps:
             for trace in traces:
                 if "received_timestamp" in trace["data"]:
@@ -498,7 +499,10 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
         # print(events, "events")
         # print(features, "features")
 
-        for event in events[::-1]:
+        sorted_events = sorted(events, key=lambda event: event['data']['received_timestamp'])
+        print(sorted_events, "sorted events")
+
+        for event in sorted_events:
             for feature in features:
                 if event["data"]["event_direction"] == "upstream" and event["data"]["packet_id"] == feature["data"]["packet"]["packet_id"]:
                     upstream_list.append({   
@@ -525,12 +529,14 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
                                     "Egress Features": get_features_summary(feature, "egress_fia"),
                                     "Fwd decision based on": feature["data"]["packet"]["packet_fwd_decision"]
                                     })
-            
+
+        print(downstream_list, "downstream")
+        print(upstream_list, "upstream")
+  
         flow_detail_summary.append({"Upstream": upstream_list,
                                 "Downstream" : list(reversed(downstream_list))})
         
-        print(downstream_list, "downstream")
-        print(flow_detail_summary, "flow summary")
+
         
         return flow_detail_summary
 
@@ -562,3 +568,17 @@ def replace_invalid_color(event, color_side):
         if color_side  == "remote_color":
             return "Service LAN"
     return event["data"][color_side]
+
+def calculate_future_timestamps(epoch_milliseconds):
+    # Convert milliseconds to seconds
+    epoch_seconds = epoch_milliseconds / 1000.0
+    
+    # Calculate future timestamps
+    one_minute_later = epoch_seconds + 60  # 60 seconds in a minute
+    one_hour_later = epoch_seconds + 3600  # 3600 seconds in an hour
+    
+    # Convert back to milliseconds
+    one_minute_later_ms = int(one_minute_later * 1000)
+    one_hour_later_ms = int(one_hour_later * 1000)
+    
+    return one_minute_later_ms, one_hour_later_ms
