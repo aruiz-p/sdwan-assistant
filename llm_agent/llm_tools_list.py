@@ -4,7 +4,6 @@ from nwpi import(
     get_device_details_from_site,
     trace_readout,
     get_entry_time_and_state,
-    get_aggregate_data,
     get_flow_summary,
     get_flow_detail
 
@@ -15,7 +14,6 @@ tools = [
     trace_readout,
     get_device_details_from_site,
     get_entry_time_and_state,
-    get_aggregate_data,
     get_flow_summary,
     get_flow_detail
 ]

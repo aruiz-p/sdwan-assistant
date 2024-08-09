@@ -26,7 +26,7 @@ def send_message_to_chat_api(message: str) -> str:
         try:
             response = requests.post(url, json=data, timeout=120)
             if response.status_code == 200:
-                return response.json()
+                return response.json()  
             else:
                 print(
                     f"Error: http status code: {response.status_code}, http response: {response.text}"

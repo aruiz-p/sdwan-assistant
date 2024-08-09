@@ -3,7 +3,7 @@ import requests
 from dotenv import load_dotenv
 import os
 import re
-import logging
+from datetime import datetime, timedelta    
 from langchain.agents import tool
 from typing import List, Optional
 load_dotenv()
@@ -317,79 +317,79 @@ def _get_entry_time_and_state(trace_id: int) -> tuple[int,str]:
     
     return entry_time, state
 
-@tool
-def get_aggregate_data(trace_id: int, timestamp: int, traceState: str) -> tuple[list,int,int]:
+# @tool
+# def get_aggregate_data(trace_id: int, timestamp: int, traceState: str) -> tuple[list,int,int]:
 
-    """
-    Get aggregate data of captured flows 
+#     """
+#     Get aggregate data of captured flows 
 
-    Args:
-        trace_id (int): Trace ID to retrieve the entry time from. 
-        timestamp (int): Epoch timestamp representing the start of the trace
-        traceState (str): State of the trace, it is retrieved from the verify_trace_status function. 
+#     Args:
+#         trace_id (int): Trace ID to retrieve the entry time from. 
+#         timestamp (int): Epoch timestamp representing the start of the trace
+#         traceState (str): State of the trace, it is retrieved from the verify_trace_status function. 
 
-    Returns:
-       drop_summary_list (list): List of dropped reason per device.
-       startime (int): epoch start time to filter further queries
-       endtime (int): epoch end time to filter further queries
+#     Returns:
+#        drop_summary_list (list): List of dropped reason per device.
+#        startime (int): epoch start time to filter further queries
+#        endtime (int): epoch end time to filter further queries
 
-    """
+#     """
 
-    return _get_aggregate_data(trace_id, timestamp, traceState)
+#     return _get_aggregate_data(trace_id, timestamp, traceState)
 
-def _get_aggregate_data(trace_id: int, timestamp: int, traceState: str) -> tuple[list,int,int]:
+# def _get_aggregate_data(trace_id: int, timestamp: int, traceState: str) -> tuple[list,int,int]:
 
-    url = "https://%s/dataservice/stream/device/nwpi/aggFlow?traceId=%s&timestamp=%s&traceState=%s"%(vmanage_host, trace_id, timestamp, traceState)
+#     url = "https://%s/dataservice/stream/device/nwpi/aggFlow?traceId=%s&timestamp=%s&traceState=%s"%(vmanage_host, trace_id, timestamp, traceState)
 
-    response = requests.request("GET", url, headers=header, verify=False)
+#     response = requests.request("GET", url, headers=header, verify=False)
 
 
-    if response.status_code == 200:
-        resp = response.json()
-        traces = resp
-        drop_summary_list = []
-        counter = 0
-        start_time = 0
-        end_time = 0
+#     if response.status_code == 200:
+#         resp = response.json()
+#         traces = resp
+#         drop_summary_list = []
+#         counter = 0
+#         start_time = 0
+#         end_time = 0
 
-        for trace in traces:
-            counter += 1
-            if counter == 1:
-                start_time = trace["data"]["start_timestamp"]
-            if counter == len(traces):
-                end_time = trace["data"]["last_update_time"]
-            app_name = trace.get("data", {}).get("app_name", {})
-            drop_summary = {"upstream": [], "downstream": []}
+#         for trace in traces:
+#             counter += 1
+#             if counter == 1:
+#                 start_time = trace["data"]["start_timestamp"]
+#             if counter == len(traces):
+#                 end_time = trace["data"]["last_update_time"]
+#             app_name = trace.get("data", {}).get("app_name", {})
+#             drop_summary = {"upstream": [], "downstream": []}
 
-            for path in trace["data"]["path_list"]:
-                upstream_devices = {}
-                downstream_devices = {}
-                for stream in path['upstream_hop_list']:
-                    local_drop = stream["local_drop_rate"]
-                    device_system_ip = stream["local_edge"] if local_drop != "0.00" else stream["remote_edge"]
-                    drops = [drop["display_name"] for drop in stream.get("local_drop_causes", []) + stream.get("remote_drop_causes", [])]
+#             for path in trace["data"]["path_list"]:
+#                 upstream_devices = {}
+#                 downstream_devices = {}
+#                 for stream in path['upstream_hop_list']:
+#                     local_drop = stream["local_drop_rate"]
+#                     device_system_ip = stream["local_edge"] if local_drop != "0.00" else stream["remote_edge"]
+#                     drops = [drop["display_name"] for drop in stream.get("local_drop_causes", []) + stream.get("remote_drop_causes", [])]
 
-                    if drops:
-                        if device_system_ip not in upstream_devices:
-                            upstream_devices[device_system_ip] = []
-                        upstream_devices[device_system_ip].extend(drops)
+#                     if drops:
+#                         if device_system_ip not in upstream_devices:
+#                             upstream_devices[device_system_ip] = []
+#                         upstream_devices[device_system_ip].extend(drops)
                     
-                for stream in path['downstream_hop_list']:
-                    local_drop = stream["local_drop_rate"]
-                    device_system_ip = stream["local_edge"] if local_drop != "0.00" else stream["remote_edge"]
-                    drops = [drop["display_name"] for drop in stream.get("local_drop_causes", []) + stream.get("remote_drop_causes", [])]
+#                 for stream in path['downstream_hop_list']:
+#                     local_drop = stream["local_drop_rate"]
+#                     device_system_ip = stream["local_edge"] if local_drop != "0.00" else stream["remote_edge"]
+#                     drops = [drop["display_name"] for drop in stream.get("local_drop_causes", []) + stream.get("remote_drop_causes", [])]
 
-                    if drops:
-                        if device_system_ip not in downstream_devices:
-                            downstream_devices[device_system_ip] = []
-                        downstream_devices[device_system_ip].extend(drops)
+#                     if drops:
+#                         if device_system_ip not in downstream_devices:
+#                             downstream_devices[device_system_ip] = []
+#                         downstream_devices[device_system_ip].extend(drops)
 
-                drop_summary["upstream"].extend([{device_ip: drops} for device_ip, drops in upstream_devices.items()])
-                drop_summary["downstream"].extend([{device_ip: drops} for device_ip, drops in downstream_devices.items()])
+#                 drop_summary["upstream"].extend([{device_ip: drops} for device_ip, drops in upstream_devices.items()])
+#                 drop_summary["downstream"].extend([{device_ip: drops} for device_ip, drops in downstream_devices.items()])
 
-            drop_summary_list.append({app_name: drop_summary})
+#             drop_summary_list.append({app_name: drop_summary})
 
-    return drop_summary_list, start_time, end_time
+#     return drop_summary_list, start_time, end_time
 
 
 @tool
@@ -401,8 +401,8 @@ def get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: i
     Args:
         trace_id (int): Trace ID to retrieve the entry time from. 
         timestamp (int): Timestamp of trace
-        start_time (int): Start time to filter query. This comes from get_aggregate_data function
-        end_time (int): End time to filter query. This comes from get_aggregate_data function
+        start_time (int): Start time to filter query. 
+        end_time (int): End time to filter query. 
 
     Returns:
        flow_summary (list): Summary information of the captured flows
@@ -414,6 +414,7 @@ def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: 
 
     url = "https://%s/dataservice/stream/device/nwpi/traceFinFlowWithQuery?traceId=%s&timestamp=%s"%(vmanage_host,trace_id,timestamp)
 
+    start_time,end_time = calculate_times(timestamp)
     payload = json.dumps({
         "query": {
             "condition": "AND",
@@ -440,6 +441,7 @@ def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: 
         for flow in flows:
             flow_info = {
                 "Flow ID:" : flow["data"]["flow_id"],
+                "Device Trace ID": flow["data"]["device_trace_id"],
                 "Source:": flow["data"]["src_ip"], 
                 "Destination:": flow["data"]["dst_ip"],
                 "Application:": flow["data"]["app_name"],
@@ -450,30 +452,31 @@ def _get_flow_summary(trace_id: int, timestamp: int, start_time: int, end_time: 
     
 
 @tool
-def get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
+def get_flow_detail(device_trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
 
     """
     Get detailed information of one flow on one trace. 
 
     Args:
-        trace_id (int): Trace ID to retrieve the entry time from. 
-        timestamp (int): Timestamp of trace
+        device_trace_id (int): Device Trace ID to retrieve the entry time from. Present on the flow summary 
+        timestamp (int): Timestamp of trace. 
         flow_id (int): Flow number to get more information about. 
 
     Returns:
        flow_detail_summary (list[dict]): Detailed information of the captured flows
     """
 
-    return _get_flow_detail(trace_id, timestamp, flow_id)
+    return _get_flow_detail(device_trace_id, timestamp, flow_id)
 
-def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
+def _get_flow_detail(device_trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
 
-    url = "https://%s/dataservice/stream/device/nwpi/flowDetail?traceId=%s&timestamp=%s&flowId=%s"%(vmanage_host,trace_id,timestamp,flow_id)
+    url = "https://%s/dataservice/stream/device/nwpi/flowDetail?traceId=%s&timestamp=%s&flowId=%s"%(vmanage_host,device_trace_id,timestamp,flow_id)
 
     response = requests.request("GET", url, headers=header, verify=False)
 
     if response.status_code == 200:
         traces = response.json()
+        print(traces, "flow details")
         flow_detail_summary = []
         upstream_list = []
         downstream_list=[]
@@ -483,9 +486,14 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
         devices = []
         midpoint = len(traces) // 2
         for trace in traces[:midpoint]:
-            if trace["data"]["received_timestamp"] not in timestamps and trace["data"]["device_name"] not in devices:
-                timestamps.append(trace["data"]["received_timestamp"])
-                devices.append(trace["data"]["device_name"])
+            if "received_timestamp" in trace["data"]:
+                if trace["data"]["received_timestamp"] not in timestamps and trace["data"]["device_name"] not in devices:
+                    timestamps.append(trace["data"]["received_timestamp"])
+                    devices.append(trace["data"]["device_name"])
+            else:
+                if trace["data"]["packet_received_timestamp"] not in timestamps and trace["data"]["device_name"] not in devices:
+                    timestamps.append(trace["data"]["packet_received_timestamp"])
+                    devices.append(trace["data"]["device_name"])
 
         for timestamp in timestamps:
             for trace in traces:
@@ -497,15 +505,53 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
                         features.append(trace)
         # print(events, "events")
         # print(features, "features")
-
-        for event in events[::-1]:
+        if len(events) > 0:
+            for event in events[::-1]:
+                for feature in features:
+                    if event["data"]["event_direction"] == "upstream" and event["data"]["packet_id"] == feature["data"]["packet"]["packet_id"]:
+                        upstream_list.append({   
+                                        "Hop": event["data"]["device_name"],
+                                        "Event": event["data"]["event_name"],
+                                        "Local Color" : replace_invalid_color(event,"local_color"),
+                                        "Remote Color": replace_invalid_color(event,"remote_color"),
+                                        "Ingress Intf": get_feature_detail(feature,"ingress_fia","Ingress Report"),
+                                        "Egress Intf": get_feature_detail(feature,"egress_fia","Transmit Report"),
+                                        "Ingress Features": get_features_summary(feature, "ingress_fia"),
+                                        "Egress Features": get_features_summary(feature, "egress_fia"),
+                                        "Fwd decision based on": feature["data"]["packet"]["packet_fwd_decision"]
+                                            })
+                        
+                    if event["data"]["event_direction"] == "downstream" and event["data"]["packet_id"] == feature["data"]["packet"]["packet_id"]:
+                        downstream_list.append({
+                                        "Hop": event["data"]["device_name"],
+                                        "Event": event["data"]["event_name"],
+                                        "Local Color" : replace_invalid_color(event,"local_color"),
+                                        "Remote Color": replace_invalid_color(event,"remote_color"),
+                                        "Ingress Intf": get_feature_detail(feature,"ingress_fia","Ingress Report"),
+                                        "Egress Intf": get_feature_detail(feature,"egress_fia","Transmit Report"),
+                                        "Ingress Features": get_features_summary(feature, "ingress_fia"),
+                                        "Egress Features": get_features_summary(feature, "egress_fia"),
+                                        "Fwd decision based on": feature["data"]["packet"]["packet_fwd_decision"]
+                                        })
+                
+            flow_detail_summary.append({"Upstream": upstream_list,
+                                    "Downstream" : list(reversed(downstream_list))})
+            
+            print(downstream_list, "downstream")
+            print(flow_detail_summary, "flow summary")
+        
+        else:
             for feature in features:
-                if event["data"]["event_direction"] == "upstream" and event["data"]["packet_id"] == feature["data"]["packet"]["packet_id"]:
+                sdwan_fwd = find_value_path(feature["data"]["packet"]["packet"], "SDWAN Forwarding")
+                key1 = sdwan_fwd[0]
+                position = sdwan_fwd[1]
+                key2 = "feature_detail"
+                if find_direction(feature["data"]["packet"]["packet"][key1][position][key2]) == "upstream":
                     upstream_list.append({   
-                                    "Hop": event["data"]["device_name"],
-                                    "Event": event["data"]["event_name"],
-                                    "Local Color" : replace_invalid_color(event,"local_color"),
-                                    "Remote Color": replace_invalid_color(event,"remote_color"),
+                                    "Hop": feature["data"]["device_name"],
+                                    "Event": feature["data"]["packet"]["event_name"],
+                                    "Local Color" : find_text(feature["data"]["packet"]["packet"][key1][position][key2],"local"),
+                                    "Remote Color": find_text(feature["data"]["packet"]["packet"][key1][position][key2],"remote"),
                                     "Ingress Intf": get_feature_detail(feature,"ingress_fia","Ingress Report"),
                                     "Egress Intf": get_feature_detail(feature,"egress_fia","Transmit Report"),
                                     "Ingress Features": get_features_summary(feature, "ingress_fia"),
@@ -513,12 +559,12 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
                                     "Fwd decision based on": feature["data"]["packet"]["packet_fwd_decision"]
                                         })
                     
-                if event["data"]["event_direction"] == "downstream" and event["data"]["packet_id"] == feature["data"]["packet"]["packet_id"]:
+                if find_direction(feature["data"]["packet"]["packet"][key1][position][key2]) == "downstream":
                     downstream_list.append({
-                                    "Hop": event["data"]["device_name"],
-                                    "Event": event["data"]["event_name"],
-                                    "Local Color" : replace_invalid_color(event,"local_color"),
-                                    "Remote Color": replace_invalid_color(event,"remote_color"),
+                                    "Hop": feature["data"]["device_name"],
+                                    "Event": feature["data"]["packet"]["event_name"],
+                                    "Local Color" : find_text(feature["data"]["packet"]["packet"][key1][position][key2],"local"),
+                                    "Remote Color": find_text(feature["data"]["packet"]["packet"][key1][position][key2],"remote"),
                                     "Ingress Intf": get_feature_detail(feature,"ingress_fia","Ingress Report"),
                                     "Egress Intf": get_feature_detail(feature,"egress_fia","Transmit Report"),
                                     "Ingress Features": get_features_summary(feature, "ingress_fia"),
@@ -531,8 +577,75 @@ def _get_flow_detail(trace_id: int, timestamp: int, flow_id: int) -> list[dict]:
         
         print(downstream_list, "downstream")
         print(flow_detail_summary, "flow summary")
+
         
         return flow_detail_summary
+    
+def find_direction(text) -> str:
+    # Compile regular expressions to search for 'dir:Upstream' or 'dir:Downstream'
+    upstream = re.compile(r'dir\s*:\s*Upstream', re.IGNORECASE)
+    downstream = re.compile(r'dir\s*:\s*Downstream', re.IGNORECASE)
+
+
+    if upstream.search(text):
+        return "upstream"
+
+    if downstream.search(text):
+        return "downstream"
+            
+    # Return 'not found' if neither pattern is present
+    return "not found"
+
+def find_text(text, pattern) -> str:
+    # Compile regular expressions to search for 'dir:Upstream' or 'dir:Downstream'
+    local_color = re.compile(r'Local\s+Color\s*:\s*([\w-]+)', re.IGNORECASE)
+    remote_color = re.compile(r'Remote\s+Color\s*:\s*([\w-]+)', re.IGNORECASE)
+            
+    if pattern == "local":
+        match = local_color.search(text)
+        if match:
+            return match.group(1)
+    
+    if pattern == "remote":
+        match = remote_color.search(text)
+        if match:
+            return match.group(1)
+    
+    # Return 'not found' if neither pattern is present
+    return "not found"
+
+def find_value_path(data, target):
+    """
+    Recursively find the path to the target value in a nested dictionary or list.
+
+    Parameters:
+    - data (dict or list): The nested data structure to search.
+    - target: The value to find.
+
+    Returns:
+    - list: A list of keys and indices representing the path to the target value.
+    """
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, list) or isinstance(value, dict):
+                # Recursively search for the target in nested structures
+                path = find_value_path(value, target)
+                if path is not None:
+                    return [key] + path
+            elif value == target:
+                return [key]
+    elif isinstance(data, list):
+        for index, item in enumerate(data):
+            if isinstance(item, dict) or isinstance(item, list):
+                # Recursively search for the target in nested structures
+                path = find_value_path(item, target)
+                if path is not None:
+                    return [index] + path
+            elif item == target:
+                return [index]
+    return None
+
 
 
 def get_feature_detail(json_data, direction, feature_name):
@@ -562,3 +675,20 @@ def replace_invalid_color(event, color_side):
         if color_side  == "remote_color":
             return "Service LAN"
     return event["data"][color_side]
+
+def calculate_times(epoch_ms):
+    # Convert the epoch time from milliseconds to seconds for compatibility
+    epoch_sec = epoch_ms / 1000.0
+    
+    # Create a datetime object from the epoch time
+    original_time = datetime.fromtimestamp(epoch_sec)
+    
+    # Calculate the time plus one minute and one hour
+    time_plus_1_minute = original_time + timedelta(minutes=1)
+    time_plus_1_hour = original_time + timedelta(hours=1)
+    
+    # Convert the datetime objects back to epoch time in milliseconds
+    epoch_plus_1_minute_ms = int(time_plus_1_minute.timestamp() * 1000)
+    epoch_plus_1_hour_ms = int(time_plus_1_hour.timestamp() * 1000)
+
+    return epoch_plus_1_minute_ms, epoch_plus_1_hour_ms
