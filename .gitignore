@@ -1,0 +1,9 @@
+.venv/
+.DS_Store
+.vscode/
+llm_agent/logs/my_app.log
+.env
+__pycache__/
+# Exclude all .pyc and .pyo files
+*.pyc
+*.pyo

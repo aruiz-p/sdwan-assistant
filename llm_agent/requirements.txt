@@ -1,0 +1,11 @@
+fastapi
+langchain
+langchain_openai
+openai
+pydantic
+python-dotenv
+Requests
+uvicorn
+webex_bot
+webexteamssdk
+coloredlogs
